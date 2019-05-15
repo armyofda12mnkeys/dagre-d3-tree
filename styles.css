@@ -1,0 +1,60 @@
+body {
+  font: 300 14px 'Helvetica Neue', Helvetica;
+}
+
+.node rect,
+.node circle {
+  stroke: black;
+  fill: #CCC;
+  border-radius: 25px;
+}
+
+.node.qualify rect,
+.node.qualify circle {
+  stroke: green;
+  fill: lime;
+}
+
+.node.disqualify rect,
+.node.disqualify circle {
+  stroke: darkred;
+  fill: red;
+}
+
+.node.both rect,
+.node.both circle {
+  stroke: fuchsia;
+  fill: yellow;
+}
+
+.edgePath path {
+  stroke: #333;
+  fill: #333;
+  stroke-width: 1.5px;
+}
+
+#tooltip_template {
+  position: "absolute";
+}
+.answer_hover_text {
+  color: red;
+  position: relative;
+  display: block; white-space: normal;
+}
+
+/*
+.node text {
+  pointer-events: none;
+}
+
+.tipsy .name {
+  font-size: 1.5em;
+  font-weight: bold;
+  color: #60b1fc;
+  margin: 0;
+}
+
+.tipsy .description {
+  font-size: 1.2em;
+}
+*/
