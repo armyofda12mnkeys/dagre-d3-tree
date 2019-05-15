@@ -18,30 +18,170 @@
 </svg>
 
 <script>
-function recurseLogicTree(node){
-  
-}
 
 window.onload = function(){
 //$(function(){
-  $.getJSON('./screener-AMS1-prod-Insomnia.json', function( sceenerLogicJson ) {
+  $.getJSON('./screener-AMS1-prod-RA_2821.json', function( sceenerLogicJson ) {
+
+
+    let recursed_nodes_obj = {};
+    let recursed_nodes_arr = [];
+    let regex_reg_question = /([a-zA-Z0-9_\-]+)-QS([0-9]+)$/;
+    let regex_ends_with_sub_question   = /([a-zA-Z0-9_\-]+)-QS(([0-9]+)\.([0-9]+))$/;
+    let regex_ends_with_sub_question_2 = /([a-zA-Z0-9_\-]+)-QS(([0-9]+)_([0-9]+))$/;
+    function convertQuestionUnderscoreKeyToDotFormat(answerJsonQuestion) {
+      let matches = regex_ends_with_sub_question_2.exec(answerJsonQuestion);
+      if(matches !==null) {
+       let module_name = matches[1];
+       let main_question_number = matches[3];
+       let sub_question_number  = matches[3];
+       let combo_name = module_name+'-QS'+main_question_number+'.'+sub_question_number;
+      }
+    }
+    function recurseLogicTree(module_name, full_sb_question_cd, first_question_module){
+        
+          //add this node if not already processed (avoid duplicate processing)
+          if(recursed_nodes_obj.hasOwnProperty(full_sb_question_cd)) {
+            return;
+          }
+          let extra_question_info = questionsJson.find((elem) => { 
+            if(full_sb_question_cd==elem.caption){ return elem; } 
+          });
+          extra_question_info.subquestions = [];
+          //is this related to this module, or a Close, or an 'outside' module.
+          if(module_name===first_question_module) {
+            extra_question_info['nodeModuleType'] = 'same_module';
+            recursed_nodes_obj[full_sb_question_cd] = extra_question_info;
+            recursed_nodes_arr.push(extra_question_info);//in case realize I need an array later
+          } else if(module_name==='Close') {
+            extra_question_info['nodeModuleType'] = 'close_module';
+            recursed_nodes_obj[full_sb_question_cd] = extra_question_info;
+            recursed_nodes_arr.push(extra_question_info);//in case realize I need an array later
+          } else {
+            extra_question_info['nodeModuleType'] = 'outside_module';        
+            recursed_nodes_obj[full_sb_question_cd] = extra_question_info;
+            recursed_nodes_arr.push(extra_question_info);//in case realize I need an array later
+            return; //stop recursing into another module as it can build some repetitive long trees and maybe loops
+          }
+
+          //add protocol/logic information from the main question to this array
+          //TODO
+          
+          //add subquestion information to this node? for protocol info later
+          //TODO or after this loop (for now trying after this loop as might be less confusing)
+          
+
+          
+          //search its logic children and recurse more nodes
+          let has_question_logic = logicJson.hasOwnProperty(full_sb_question_cd);
+          if( has_question_logic ) {
+                
+              let from_question_logic_key = full_sb_question_cd;
+              let from_question_logic_value = logicJson[full_sb_question_cd];
+              
+              recursed_nodes_obj[full_sb_question_cd].main_question_logic = from_question_logic_value;
+              let found = recursed_nodes_arr.find((elem)=> { 
+                if(elem.caption===from_question_logic_key){ return elem;} 
+              });
+              found.main_question_logic = from_question_logic_value; 
+            
+              //1st add logic if exists
+            
+              let is_child_question = from_question_logic_value.isChildQuestion;           
+              if(!is_child_question) {
+                //let question_id = from_question_logic_value.projectQuestionId;
+                let logic = from_question_logic_value.logic[0];
+                let logic_array = logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
+                //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
+                for( let i = 0; i < logic_array.length; i++ ){
+                  let rule = logic_array[i];
+                  //let order_id = rule.orderID;
+                  let goto_question_id = rule.rule_action.projQsId;
+                  let goto_question = questionsJson.find((elem) => { 
+                    if(goto_question_id==elem.projQsId){ return elem; } 
+                  });
+                  let goto_question_cd = goto_question.caption;
+                  //let logic_broken = rule.rule_action.logicBroken;
+                  //let logic_text = rule.text;              
+                  console.log(full_sb_question_cd +' to '+ goto_question_cd +'(aka '+goto_question_id+')');
+                  
+                  let matches = regex_reg_question.exec(goto_question_cd);
+                  if(matches!==null) {
+                     let module_name = matches[1];
+                     let main_question_number = matches[2];
+                     let combo_name = module_name+'-QS'+main_question_number;
+                     
+                     recurseLogicTree(module_name,goto_question_cd, first_question_module);              
+                  }
+                }//for
+              }//if is_child_question
+                    
+          }//if has logic so points to other questions we need to add (so we come up with most minimal tree)
+    }    
 
     let questionsJson = sceenerLogicJson.projQuestions || {};
     let logicJson = sceenerLogicJson.scrLogicMap || {};
     //some extra information in questions might be useful to display... but look at later!
     //let questions_lookup = questionsJson.map((elem)=> {questionID: elem.projQsId, caption: elem.caption} );
 
-    //let first_question_module = 'RA_2821'; //TODO: get from S.B.
-    //let first_question_cd = 'RA_2821-QS1'; //TODO: get from S.B.
-    let first_question_module = 'Insomnia'; //TODO: get from S.B.
-    let first_question_cd = 'Insomnia-QS1'; //TODO: get from S.B.
     //let first_question_module = 'Intro'; //TODO: get from S.B.
     //let first_question_cd = 'Intro-QS1'; //TODO: get from S.B.
-    
+    let first_question_module = 'RA_2821'; //TODO: get from S.B.
+    let first_question_cd = 'RA_2821-QS1'; //TODO: get from S.B.
+    //let first_question_module = 'Insomnia'; //TODO: get from S.B.
+    //let first_question_cd = 'Insomnia-QS1'; //TODO: get from S.B.
     
     //alternate: follow the tree from 1st question...
-    //recurseLogicTree(first_question_module, first_question_cd);
+    recurseLogicTree(first_question_module, first_question_cd, first_question_module);
     
+    //add subquestion information to the main question
+    Object.entries(logicJson).forEach( ([from_question_key, from_question_logic_value]) => {
+          //if its subquestion, skip for now (may want to check protocol logic on subquestions later if those exist there; I'm not sure if they do).
+          if(from_question_logic_value.isChildQuestion) {
+            let parent_sb_question_id = from_question_logic_value.parentProjQsId;
+            let child_sb_question_id = from_question_logic_value.projectQuestionId;
+            let child_sb_question_cd = convertQuestionUnderscoreKeyToDotFormat(from_question_key);
+            
+            let child_question_from_question = questionsJson.find((elem) => { 
+              if(child_sb_question_id==elem.projQsId){ return elem; } 
+            });
+            
+            //find that parent/main question's code and add this subquestion to that main question's subquestions array
+            let subquestion_parent = questionsJson.find((elem)=>{
+              if(elem.projQsId==parent_sb_question_id){ return elem; }
+            });
+            let subquestion_obj = { question: child_question_from_question, logic: from_question_logic_value};
+            //modify the object
+            
+            //some subquestions may not have a parent which is being pointed at, so dont add if it doesn't exist in the flow
+            if( recursed_nodes_obj.hasOwnProperty(subquestion_parent.caption)) {
+              recursed_nodes_obj[subquestion_parent.caption].subquestions.push( subquestion_obj );
+              //modify the array
+              let found = recursed_nodes_arr.find((elem)=> { 
+                if(elem.caption===subquestion_parent.caption){ return elem;} 
+              });
+              found.subquestions.push ( subquestion_obj );
+            } 
+          }          
+    });
+
+    
+    //console.log(recursed_nodes_arr);
+    console.dir(recursed_nodes_obj);
+    //console.log(recursed_nodes_arr);
+    console.dir(recursed_nodes_arr);
+    console.log('done');
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    /*
     //1st figure out which nodes are involved in this module so you don't have a bunch of abandoned extra nodes left
     //Find out 1st question you interested in, get its Modules, and remove the other nodes (minus the 'Close' module questions)
     //let pre_nodes = [];
@@ -71,6 +211,7 @@ window.onload = function(){
         }
       }   
     }
+    */
     
     
 
@@ -101,8 +242,9 @@ window.onload = function(){
     console.log('be4 loop node creation');
     //var regex_ends_with_sub_question = new RegExp("\\.([0-9]+)$");
     
-    for(let i = 0; i < pre_nodes.length; i++){
-      let question = questionsJson[i];
+    for(let i = 0; i < recursed_nodes_arr.length; i++){
+      //let question = questionsJson[i];
+      let question = recursed_nodes_arr[i];
       if (question.projQsId !== null) {
         if( !regex_ends_with_sub_question.test(question.caption) ) {
           if(question.questionCd !== null) {//maybe dont add if questionCd is null, 
@@ -135,7 +277,8 @@ window.onload = function(){
         Or for XML, only if the named entities are defined in its DTD.
         */ 
     }
-    //loop over logic    
+    
+    
     Object.entries(logicJson).forEach( ([from_question_key, from_question_logic_value]) => {
           //if its subquestion, skip for now (may want to check protocol logic on subquestions later if those exist there; I'm not sure if they do).
           if(from_question_logic_value.isChildQuestion) {
@@ -163,14 +306,7 @@ window.onload = function(){
               //echo 'g.setEdge("QS1", "QS2", { label: }';
               //g.setEdge(from_question_key, goto_question_cd, { label: '<u>Rule'+ order_id +'</u>', hovertext:'A==B', labelType: 'html' });
               console.log(from_question_key +' to '+ goto_question_cd +'(aka '+goto_question_id+')');
-              /*var x = nodes.find((elem)=> {
-                if(elem.qs_code == from_question_key) { return elem; }
-              });
-              var y = nodes.find((elem)=> {
-                if(elem.qs_code == from_question_key) { return elem; }
-              });
-              if( );
-              */
+              
               //g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text'>Rule"+ order_id +"</u>", labelType: "html", lineInterpolate: 'basis' });
               //style: "stroke: #f66; stroke-width: 3px; stroke-dasharray: 5, 5;", labelStyle: "font-style: italic; text-decoration: underline;"
               g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
@@ -180,7 +316,46 @@ window.onload = function(){
           }//if
           
     });//Obj/func
-    
+    //loop over logic
+    /*
+    Object.entries(logicJson).forEach( ([from_question_key, from_question_logic_value]) => {
+          //if its subquestion, skip for now (may want to check protocol logic on subquestions later if those exist there; I'm not sure if they do).
+          if(from_question_logic_value.isChildQuestion) {
+            return;
+          }
+          console.log('checking entry: '+from_question_key);
+              
+          //skip over this node if its a child question since those don't have logic
+          let is_child_question = from_question_logic_value.isChildQuestion; 
+          let question_id = from_question_logic_value.projectQuestionId;
+          if(!is_child_question) {
+            let logic = from_question_logic_value.logic[0];
+            let logic_array = logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
+            //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
+            for( let i = 0; i < logic_array.length; i++ ){
+              let rule = logic_array[i];
+              let order_id = rule.orderID;
+              let goto_question_id = rule.rule_action.projQsId;
+              let goto_question = nodes.find((elem) => { 
+                if(goto_question_id==elem.qs_id){ return elem; } 
+              });
+              let goto_question_cd = goto_question.qs_code;
+              let logic_broken = rule.rule_action.logicBroken;
+              let logic_text = rule.text;
+              //echo 'g.setEdge("QS1", "QS2", { label: }';
+              //g.setEdge(from_question_key, goto_question_cd, { label: '<u>Rule'+ order_id +'</u>', hovertext:'A==B', labelType: 'html' });
+              console.log(from_question_key +' to '+ goto_question_cd +'(aka '+goto_question_id+')');
+              
+              //g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text'>Rule"+ order_id +"</u>", labelType: "html", lineInterpolate: 'basis' });
+              //style: "stroke: #f66; stroke-width: 3px; stroke-dasharray: 5, 5;", labelStyle: "font-style: italic; text-decoration: underline;"
+              g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
+              //g.setEdge(from_question_key, goto_question_cd,  { label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
+              //g.setEdge(from_question_key, goto_question_cd, { label: 'Rule'+ order_id, hovertext:'A==B' });
+            }//for
+          }//if
+          
+    });//Obj/func
+    */
 
     var svg = d3.select("svg"),
         inner = svg.select("g");
