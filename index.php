@@ -21,22 +21,49 @@
 
 window.onload = function(){
 //$(function(){
+  //$.getJSON('./screener-AMS1-prod-Insomnia.json', function( sceenerLogicJson ) {
+  //$.getJSON('./screener-AMS1-prod-Intro.json', function( sceenerLogicJson ) {
   $.getJSON('./screener-AMS1-prod-RA_2821.json', function( sceenerLogicJson ) {
 
 
     let recursed_nodes_obj = {};
     let recursed_nodes_arr = [];
-    let regex_reg_question = /([a-zA-Z0-9_\-]+)-QS([0-9]+)$/;
-    let regex_ends_with_sub_question   = /([a-zA-Z0-9_\-]+)-QS(([0-9]+)\.([0-9]+))$/;
-    let regex_ends_with_sub_question_2 = /([a-zA-Z0-9_\-]+)-QS(([0-9]+)_([0-9]+))$/;
+    let regex_reg_question = /([a-zA-Z0-9_\- ]+)-QS([0-9]+)$/;
+    let regex_ends_with_sub_question   = /([a-zA-Z0-9_\- ]+)-QS(([0-9]+)\.([0-9]+))$/;
+    let regex_ends_with_sub_question_2 = /([a-zA-Z0-9_\- ]+)-QS(([0-9]+)_([0-9]+))$/;
     function convertQuestionUnderscoreKeyToDotFormat(answerJsonQuestion) {
       let matches = regex_ends_with_sub_question_2.exec(answerJsonQuestion);
       if(matches !==null) {
        let module_name = matches[1];
        let main_question_number = matches[3];
-       let sub_question_number  = matches[3];
+       let sub_question_number  = matches[4];
        let combo_name = module_name+'-QS'+main_question_number+'.'+sub_question_number;
+       return combo_name;
       }
+    }
+    function convertModuleQuestionToQuestion(full_module_from_question_cd,full_module_to_question_cd) {
+      
+      let matches = regex_reg_question.exec(full_module_to_question_cd);
+      if(matches!==null) {
+         let module_name = matches[1];
+         let main_question_number = matches[2];
+         
+          let matches2 = regex_reg_question.exec(full_module_from_question_cd);
+          if(matches2!==null) {
+            let module_name2 = matches2[1];
+            //let main_question_number2 = matches2[2];
+            
+            if(module_name2===module_name) {
+              return 'QS'+ main_question_number;      
+            } else {
+              return module_name +'-QS'+ main_question_number;
+            }
+            
+          } else {         
+            return 'QS'+ main_question_number;      
+          }
+      }
+      return 'QS##';
     }
     function recurseLogicTree(module_name, full_sb_question_cd, first_question_module){
         
@@ -157,10 +184,12 @@ window.onload = function(){
             if( recursed_nodes_obj.hasOwnProperty(subquestion_parent.caption)) {
               recursed_nodes_obj[subquestion_parent.caption].subquestions.push( subquestion_obj );
               //modify the array
+              /* think this points the same object so not needed since passed-by-reference
               let found = recursed_nodes_arr.find((elem)=> { 
                 if(elem.caption===subquestion_parent.caption){ return elem;} 
               });
               found.subquestions.push ( subquestion_obj );
+              */
             } 
           }          
     });
@@ -171,14 +200,7 @@ window.onload = function(){
     //console.log(recursed_nodes_arr);
     console.dir(recursed_nodes_arr);
     console.log('done');
-    
-    
-    
-    
-    
-    
-    
-    
+
     
     
     /*
@@ -212,19 +234,7 @@ window.onload = function(){
       }   
     }
     */
-    
-    
-
-    /*
-    //start with a start_question of the module that you want to visualize
-    Object.entries(logicJson).forEach( ([from_question_key, from_question_logic_value]) => {
-          //if its subquestion, skip for now (may want to check protocol logic on subquestions later if those exist there; I'm not sure if they do).
-          if(from_question_logic_value.isChildQuestion) {
-            return;
-          }
-          console.log('checking entry: '+from_question_key);
-    }
-    //*/
+        
 
     var g = new dagreD3.graphlib.Graph({ compound: false, multigraph: true }).setGraph({});
     /*
@@ -281,7 +291,8 @@ window.onload = function(){
     
     Object.entries(logicJson).forEach( ([from_question_key, from_question_logic_value]) => {
           //if its subquestion, skip for now (may want to check protocol logic on subquestions later if those exist there; I'm not sure if they do).
-          if(from_question_logic_value.isChildQuestion) {
+          //also check if the node exists, we may have not cared about this questions logic if it wasn't included based on the above rules.
+          if(from_question_logic_value.isChildQuestion || (!recursed_nodes_obj.hasOwnProperty(from_question_key)) ) {
             return;
           }
           console.log('checking entry: '+from_question_key);
@@ -309,7 +320,7 @@ window.onload = function(){
               
               //g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text'>Rule"+ order_id +"</u>", labelType: "html", lineInterpolate: 'basis' });
               //style: "stroke: #f66; stroke-width: 3px; stroke-dasharray: 5, 5;", labelStyle: "font-style: italic; text-decoration: underline;"
-              g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
+              g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<div class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>"+ convertModuleQuestionToQuestion(from_question_key)+'<br/>Rule#'+ order_id +'<br/>'+ convertModuleQuestionToQuestion(from_question_key, goto_question_cd) +"</div>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html", lineInterpolate: 'basis' });
               //g.setEdge(from_question_key, goto_question_cd,  { label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
               //g.setEdge(from_question_key, goto_question_cd, { label: 'Rule'+ order_id, hovertext:'A==B' });
             }//for
@@ -368,6 +379,15 @@ window.onload = function(){
     var zoom = d3.behavior.zoom().on("zoom", function() {
           inner.attr("transform", "translate(" + d3.event.translate + ")" +
                                       "scale(" + d3.event.scale + ")");
+          if(window.colorswitch=='#0000FF') {
+            window.colorswitch = '#0000FE';
+            //console.log('switch to: '+ window.colorswitch);
+            setTimeout( function(){ $('.answer_hover_text').css('color',window.colorswitch); /*console.log('TIMEOUT');*/ }, 1000);
+          } else {
+            window.colorswitch = '#0000FF';
+            //console.log('switch to: '+ window.colorswitch);
+            setTimeout( function(){ $('.answer_hover_text').css('color',window.colorswitch); /*console.log('TIMEOUT');*/ }, 1000);
+          }
         });
     svg.call(zoom);
 
@@ -415,8 +435,8 @@ window.onload = function(){
       .scale(initialScale)
       .event(svg);
     svg.attr('height', g.graph().height * initialScale + 40);
-
-    setTimeout( function(){ $('.answer_hover_text').css('color','blue'); console.log('TIMEOUT'); }, 5000);
+    window.colorswitch = '#0000FF';
+    setTimeout( function(){ $('.answer_hover_text').css('color', window.colorswitch); /*console.log('TIMEOUT');*/ }, 5000);
   });
   //let sceenerLogicJson = $.getJSON('http://dev-phptest.acurian.com/tests/d3/test4-dagre-AMS1/screener-AMS1.json');
   

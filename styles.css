@@ -37,9 +37,10 @@ body {
   position: "absolute";
 }
 .answer_hover_text {
-  color: red;
+  color: blue;
   position: relative;
   display: block; white-space: normal;
+  text-decoration: underline;
 }
 
 /*
