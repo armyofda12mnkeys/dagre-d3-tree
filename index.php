@@ -23,6 +23,7 @@ window.onload = function(){
 //$(function(){
   //$.getJSON('./screener-AMS1-prod-Insomnia.json', function( sceenerLogicJson ) {
   //$.getJSON('./screener-AMS1-prod-Intro.json', function( sceenerLogicJson ) {
+  //https://sb.acurian.com/sb/study/842/logicbuilder/getScreenerLogic?selModuleName=Intro&isShowAllMod=false&isInitLB=true
   $.getJSON('./screener-AMS1-prod-RA_2821.json', function( sceenerLogicJson ) {
 
 
@@ -41,30 +42,110 @@ window.onload = function(){
        return combo_name;
       }
     }
+    
+    //QS1 to QS2,   or QS1
     function convertModuleQuestionToQuestion(full_module_from_question_cd,full_module_to_question_cd) {
       
-      let matches = regex_reg_question.exec(full_module_to_question_cd);
-      if(matches!==null) {
-         let module_name = matches[1];
-         let main_question_number = matches[2];
-         
-          let matches2 = regex_reg_question.exec(full_module_from_question_cd);
-          if(matches2!==null) {
-            let module_name2 = matches2[1];
-            //let main_question_number2 = matches2[2];
-            
-            if(module_name2===module_name) {
+      if(full_module_to_question_cd !== undefined) {
+        let matches = regex_reg_question.exec(full_module_to_question_cd);
+        if(matches!==null) {
+           let module_name = matches[1];
+           let main_question_number = matches[2];
+           
+            let matches2 = regex_reg_question.exec(full_module_from_question_cd);
+            if(matches2!==null) {
+              let module_name2 = matches2[1];
+              //let main_question_number2 = matches2[2];
+              
+              if(module_name2===module_name) {
+                return 'QS'+ main_question_number;      
+              } else {
+                return module_name +'-QS'+ main_question_number;
+              }
+              
+            } else {         
               return 'QS'+ main_question_number;      
-            } else {
-              return module_name +'-QS'+ main_question_number;
             }
-            
-          } else {         
-            return 'QS'+ main_question_number;      
-          }
+        }
+      } else {
+        let matches = regex_reg_question.exec(full_module_from_question_cd);
+        if(matches!==null) {
+          let module_name = matches[1];
+          let main_question_number = matches[2];
+          return 'QS'+ main_question_number;               
+        } else {         
+          return 'QS##';      
+        }
       }
-      return 'QS##';
     }
+    function evalQuestionForLogic(question) {
+      let proto_logic_obj = {proto_logic_type: 'none', proto_main_logic: [], sub_question_logic: [] };
+      
+      if(question.main_question_logic && typeof question.main_question_logic.logic[1] !== 'undefined') {
+        //note: outside modules don't have their logic here so you won't get a main_question_logic for them
+        let logic = question.main_question_logic.logic[1];//protocol logic
+        let logic_array = logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
+        //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
+        let has_main_question_proto_logic = false;
+        for( let i = 0; i < logic_array.length; i++ ){
+          has_main_question_proto_logic = true;
+          
+          let rule = logic_array[i];
+          //let order_id = rule.orderID;
+           if( rule.selectedQualifier == "Disqualify") {
+             if(proto_logic_obj.proto_logic_type=='none') {
+               proto_logic_obj.proto_logic_type = 'disqualify';
+             } else if (proto_logic_obj.proto_logic_type == 'qualify') {
+               proto_logic_obj.proto_logic_type = 'both';
+             }
+           } else if ( rule.selectedQualifier == "Qualify") {
+             if(proto_logic_obj.proto_logic_type=='none') {
+               proto_logic_obj.proto_logic_type = 'qualify';
+             } else if (proto_logic_obj.proto_logic_type == 'disqualify') {
+               proto_logic_obj.proto_logic_type = 'both';
+             }
+           }
+           //"selectedQualifier": "Qualify"|"Disqualify"
+           //"selectedProtocol" array of proto strings
+           //"selectedDQLabel": "No swollen/tender joints",     
+        }
+      }
+      
+      //and question.subquestions...logic
+      //check subquestion logic now
+      if( question.subquestions.length > 0 )  {
+        let has_sub_question_proto_logic = false;
+        for( let i = 0; i < question.subquestions.length; i++ ){          
+          let subquestion = question.subquestions[i];
+          let sub_logic = subquestion.logic.logic[0];//protocol logic
+          let sub_logic_array = sub_logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
+          //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
+          for( let i = 0; i < sub_logic_array.length; i++ ){
+            has_sub_question_proto_logic = false;
+            
+            let sub_rule = sub_logic_array[i];
+            //let order_id = rule.orderID;
+             if( sub_rule.selectedQualifier == "Disqualify") {
+               if(proto_logic_obj.proto_logic_type=='none') {
+                 proto_logic_obj.proto_logic_type = 'disqualify';
+               } else if (proto_logic_obj.proto_logic_type == 'qualify') {
+                 proto_logic_obj.proto_logic_type = 'both';
+               }
+             } else if ( sub_rule.selectedQualifier == "Qualify") {
+               if(proto_logic_obj.proto_logic_type=='none') {
+                 proto_logic_obj.proto_logic_type = 'qualify';
+               } else if (proto_logic_obj.proto_logic_type == 'disqualify') {
+                 proto_logic_obj.proto_logic_type = 'both';
+               }
+             }
+             //"selectedQualifier": "Qualify"|"Disqualify"
+             //"selectedProtocol" array of proto strings
+             //"selectedDQLabel": "No swollen/tender joints",     
+          }
+        }
+      }
+      return proto_logic_obj;
+    } 
     function recurseLogicTree(module_name, full_sb_question_cd, first_question_module){
         
           //add this node if not already processed (avoid duplicate processing)
@@ -201,40 +282,6 @@ window.onload = function(){
     console.dir(recursed_nodes_arr);
     console.log('done');
 
-    
-    
-    /*
-    //1st figure out which nodes are involved in this module so you don't have a bunch of abandoned extra nodes left
-    //Find out 1st question you interested in, get its Modules, and remove the other nodes (minus the 'Close' module questions)
-    //let pre_nodes = [];
-    let pre_nodes = {};
-    //let regex_ends_with_sub_question = new RegExp("\\([a-zA-Z0-9_\\-]+)-(([0-9]+).([0-9]+))$");
-    let regex_ends_with_sub_question = /([a-zA-Z0-9_\-]+)-QS(([0-9]+)\.([0-9]+))$/;
-    for(let i = 0; i < questionsJson.length; i++) {
-      let question = questionsJson[i];
-      
-      if( (question.projQsId !== null) && ((question.moduleName === first_question_module) || (question.moduleName === 'Close')) ) {
-        if( (!question.isChildQs) ) { //not a child
-          //pre_nodes.push(question);
-          pre_nodes[question.caption] = question;
-          pre_nodes[question.caption].subquestions = [];
-        } else {//a child question
-          //add to a separate array?
-           let matches = regex_ends_with_sub_question.exec(question.caption);
-           if(matches!==null) {
-             let module_name = matches[1];
-             let main_question_name = matches[3];
-             let combo_name = module_name+'-QS'+main_question_name;
-             //don't pass this whole question but add it underneith the question
-             //pre_nodes[combo_name].subquestions.push(question);           
-             pre_nodes[combo_name].subquestions.push(question);
-           }
-           //console.dir(matches);
-        }
-      }   
-    }
-    */
-        
 
     var g = new dagreD3.graphlib.Graph({ compound: false, multigraph: true }).setGraph({});
     /*
@@ -259,7 +306,9 @@ window.onload = function(){
         if( !regex_ends_with_sub_question.test(question.caption) ) {
           if(question.questionCd !== null) {//maybe dont add if questionCd is null, 
             //console.log('adding node: '+ question.caption);
-            nodes.push( {'qs_code': question.caption, 'qs_id': question.projQsId, 'hovertext': '<div><b>QuestionType: </b>'+ question.answerType +"<br/><b>Question Info: </b>"+ question.questionText + ((question.alias !== null) ? ("<br/><b>Alias: </b>"+ question.alias +"</div>") : ''), 'proto_logic_type': 'none|both|disqualify|qualify' } );
+            console.log(question);
+            let proto_logic_obj = evalQuestionForLogic(question);
+            nodes.push( {'qs_code': question.caption, 'qs_id': question.projQsId, 'hovertext': '<div><b>QuestionType: </b>'+ question.answerType +"<br/><b>Question Info: </b>"+ question.questionText + ((question.alias !== null) ? ("<br/><b>Alias: </b>"+ question.alias +"</div>") : ''), 'proto_logic_type': proto_logic_obj.proto_logic_type } );
           }//answerType questionText alias if not null
         }
       }
@@ -328,45 +377,6 @@ window.onload = function(){
           
     });//Obj/func
     //loop over logic
-    /*
-    Object.entries(logicJson).forEach( ([from_question_key, from_question_logic_value]) => {
-          //if its subquestion, skip for now (may want to check protocol logic on subquestions later if those exist there; I'm not sure if they do).
-          if(from_question_logic_value.isChildQuestion) {
-            return;
-          }
-          console.log('checking entry: '+from_question_key);
-              
-          //skip over this node if its a child question since those don't have logic
-          let is_child_question = from_question_logic_value.isChildQuestion; 
-          let question_id = from_question_logic_value.projectQuestionId;
-          if(!is_child_question) {
-            let logic = from_question_logic_value.logic[0];
-            let logic_array = logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
-            //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
-            for( let i = 0; i < logic_array.length; i++ ){
-              let rule = logic_array[i];
-              let order_id = rule.orderID;
-              let goto_question_id = rule.rule_action.projQsId;
-              let goto_question = nodes.find((elem) => { 
-                if(goto_question_id==elem.qs_id){ return elem; } 
-              });
-              let goto_question_cd = goto_question.qs_code;
-              let logic_broken = rule.rule_action.logicBroken;
-              let logic_text = rule.text;
-              //echo 'g.setEdge("QS1", "QS2", { label: }';
-              //g.setEdge(from_question_key, goto_question_cd, { label: '<u>Rule'+ order_id +'</u>', hovertext:'A==B', labelType: 'html' });
-              console.log(from_question_key +' to '+ goto_question_cd +'(aka '+goto_question_id+')');
-              
-              //g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text'>Rule"+ order_id +"</u>", labelType: "html", lineInterpolate: 'basis' });
-              //style: "stroke: #f66; stroke-width: 3px; stroke-dasharray: 5, 5;", labelStyle: "font-style: italic; text-decoration: underline;"
-              g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
-              //g.setEdge(from_question_key, goto_question_cd,  { label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
-              //g.setEdge(from_question_key, goto_question_cd, { label: 'Rule'+ order_id, hovertext:'A==B' });
-            }//for
-          }//if
-          
-    });//Obj/func
-    */
 
     var svg = d3.select("svg"),
         inner = svg.select("g");
@@ -438,7 +448,6 @@ window.onload = function(){
     window.colorswitch = '#0000FF';
     setTimeout( function(){ $('.answer_hover_text').css('color', window.colorswitch); /*console.log('TIMEOUT');*/ }, 5000);
   });
-  //let sceenerLogicJson = $.getJSON('http://dev-phptest.acurian.com/tests/d3/test4-dagre-AMS1/screener-AMS1.json');
   
 //});
 };
