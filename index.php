@@ -21,10 +21,13 @@
 
 window.onload = function(){
 //$(function(){
+  
   //$.getJSON('./screener-AMS1-prod-Insomnia.json', function( sceenerLogicJson ) {
   //$.getJSON('./screener-AMS1-prod-Intro.json', function( sceenerLogicJson ) {
   //https://sb.acurian.com/sb/study/842/logicbuilder/getScreenerLogic?selModuleName=Intro&isShowAllMod=false&isInitLB=true
-  $.getJSON('./screener-AMS1-prod-RA_2821.json', function( sceenerLogicJson ) {
+  //$.getJSON('./screener-AMS1-prod-RA_2821.json', function( sceenerLogicJson ) {
+  //$.getJSON('./screener-3889OUS-prod-Intro.json', function( sceenerLogicJson ) {
+  $.getJSON('./screener-3889OUS-prod-Core.json', function( sceenerLogicJson ) {
 
 
     let recursed_nodes_obj = {};
@@ -81,33 +84,33 @@ window.onload = function(){
     function evalQuestionForLogic(question) {
       let proto_logic_obj = {proto_logic_type: 'none', proto_main_logic: [], sub_question_logic: [] };
       
-      if(question.main_question_logic && typeof question.main_question_logic.logic[1] !== 'undefined') {
+      let has_main_question_proto_logic = false;
+      if(question.main_question_logic && typeof question.main_question_logic.logic[1] !== 'undefined' && question.main_question_logic.logic[1].rules.length > 0 ) {
         //note: outside modules don't have their logic here so you won't get a main_question_logic for them
         let logic = question.main_question_logic.logic[1];//protocol logic
         let logic_array = logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
         //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
-        let has_main_question_proto_logic = false;
-        for( let i = 0; i < logic_array.length; i++ ){
-          has_main_question_proto_logic = true;
-          
+        has_main_question_proto_logic = true;
+        for( let i = 0; i < logic_array.length; i++ ){          
           let rule = logic_array[i];
           //let order_id = rule.orderID;
-           if( rule.selectedQualifier == "Disqualify") {
-             if(proto_logic_obj.proto_logic_type=='none') {
-               proto_logic_obj.proto_logic_type = 'disqualify';
-             } else if (proto_logic_obj.proto_logic_type == 'qualify') {
-               proto_logic_obj.proto_logic_type = 'both';
-             }
-           } else if ( rule.selectedQualifier == "Qualify") {
-             if(proto_logic_obj.proto_logic_type=='none') {
-               proto_logic_obj.proto_logic_type = 'qualify';
-             } else if (proto_logic_obj.proto_logic_type == 'disqualify') {
-               proto_logic_obj.proto_logic_type = 'both';
-             }
-           }
+          if( rule.selectedQualifier == "Disqualify") {
+            if(proto_logic_obj.proto_logic_type=='none') {
+              proto_logic_obj.proto_logic_type = 'disqualify';
+            } else if (proto_logic_obj.proto_logic_type == 'qualify') {
+              proto_logic_obj.proto_logic_type = 'both';
+            }
+          } else if ( rule.selectedQualifier == "Qualify") {
+            if(proto_logic_obj.proto_logic_type=='none') {
+              proto_logic_obj.proto_logic_type = 'qualify';
+            } else if (proto_logic_obj.proto_logic_type == 'disqualify') {
+              proto_logic_obj.proto_logic_type = 'both';
+            }
+          }
            //"selectedQualifier": "Qualify"|"Disqualify"
            //"selectedProtocol" array of proto strings
            //"selectedDQLabel": "No swollen/tender joints",     
+           proto_logic_obj.proto_main_logic.push( {rule_text: rule.text, type: rule.selectedQualifier, protocols: rule.selectedProtocol, label: rule.selectedDQLabel} );
         }
       }
       
@@ -121,26 +124,27 @@ window.onload = function(){
           let sub_logic_array = sub_logic.rules || []; //ask Dmitriy would there ever be > 1 logic section in the array
           //let whole_entire_logic_for_this_question = from_question_logic_value.logic[0].logicSummaryText;
           for( let i = 0; i < sub_logic_array.length; i++ ){
-            has_sub_question_proto_logic = false;
+            has_sub_question_proto_logic = true;
             
             let sub_rule = sub_logic_array[i];
             //let order_id = rule.orderID;
-             if( sub_rule.selectedQualifier == "Disqualify") {
-               if(proto_logic_obj.proto_logic_type=='none') {
-                 proto_logic_obj.proto_logic_type = 'disqualify';
-               } else if (proto_logic_obj.proto_logic_type == 'qualify') {
-                 proto_logic_obj.proto_logic_type = 'both';
-               }
-             } else if ( sub_rule.selectedQualifier == "Qualify") {
-               if(proto_logic_obj.proto_logic_type=='none') {
-                 proto_logic_obj.proto_logic_type = 'qualify';
-               } else if (proto_logic_obj.proto_logic_type == 'disqualify') {
-                 proto_logic_obj.proto_logic_type = 'both';
-               }
-             }
+            if( sub_rule.selectedQualifier == "Disqualify") {
+              if(proto_logic_obj.proto_logic_type=='none') {
+                proto_logic_obj.proto_logic_type = 'disqualify';
+              } else if (proto_logic_obj.proto_logic_type == 'qualify') {
+                proto_logic_obj.proto_logic_type = 'both';
+              }
+            } else if ( sub_rule.selectedQualifier == "Qualify") {
+              if(proto_logic_obj.proto_logic_type=='none') {
+                proto_logic_obj.proto_logic_type = 'qualify';
+              } else if (proto_logic_obj.proto_logic_type == 'disqualify') {
+                proto_logic_obj.proto_logic_type = 'both';
+              }
+            }
              //"selectedQualifier": "Qualify"|"Disqualify"
              //"selectedProtocol" array of proto strings
              //"selectedDQLabel": "No swollen/tender joints",     
+             proto_logic_obj.sub_question_logic.push( {rule_text: sub_rule.text, type: sub_rule.selectedQualifier, protocols: sub_rule.selectedProtocol, label: sub_rule.selectedDQLabel} );
           }
         }
       }
@@ -234,8 +238,8 @@ window.onload = function(){
 
     //let first_question_module = 'Intro'; //TODO: get from S.B.
     //let first_question_cd = 'Intro-QS1'; //TODO: get from S.B.
-    let first_question_module = 'RA_2821'; //TODO: get from S.B.
-    let first_question_cd = 'RA_2821-QS1'; //TODO: get from S.B.
+    let first_question_module = 'Core'; //TODO: get from S.B.
+    let first_question_cd = 'Core-QS1'; //TODO: get from S.B.
     //let first_question_module = 'Insomnia'; //TODO: get from S.B.
     //let first_question_cd = 'Insomnia-QS1'; //TODO: get from S.B.
     
@@ -308,7 +312,47 @@ window.onload = function(){
             //console.log('adding node: '+ question.caption);
             console.log(question);
             let proto_logic_obj = evalQuestionForLogic(question);
-            nodes.push( {'qs_code': question.caption, 'qs_id': question.projQsId, 'hovertext': '<div><b>QuestionType: </b>'+ question.answerType +"<br/><b>Question Info: </b>"+ question.questionText + ((question.alias !== null) ? ("<br/><b>Alias: </b>"+ question.alias +"</div>") : ''), 'proto_logic_type': proto_logic_obj.proto_logic_type } );
+            
+            let protocol_html = '';
+            if(proto_logic_obj.proto_logic_type!='none') {
+              //console.log('Lets do some work!');              
+              if (proto_logic_obj.proto_main_logic.length > 0) {
+                console.log('Main Proto Logic!');
+                protocol_html += '<div class="main_question_proto_logic">';
+                protocol_html += '<b>Protocol logic (on main question):</b><br/>';
+                for(let i=0; i < proto_logic_obj.proto_main_logic.length; i++) {
+                  protocol_html += '<div class="rule">';
+                    let rule = proto_logic_obj.proto_main_logic[i];
+                    protocol_html += `<b>Type: </b>: ${rule.type}<br/>`;
+                    protocol_html += `<b>Label: </b>: ${rule.label}<br/>`;
+                    protocol_html += `<b>Protocols: </b>: ${rule.protocols} <br/>`;
+                    protocol_html += `<b>Text: </b>: ${rule.rule_text}`;
+                  protocol_html += '</div>';
+                }
+                protocol_html += '</div>';
+              }
+            }
+
+            if (proto_logic_obj.sub_question_logic.length > 0) {
+              //console.log('Sub Proto Logic!');  
+              if (proto_logic_obj.sub_question_logic.length > 0) {
+                console.log('Main Proto Logic!');
+                protocol_html += '<div class="sub_question_proto_logic">';
+                protocol_html += '<b>Protocol logic (on sub question):</b><br/>';
+                for(let i=0; i < proto_logic_obj.sub_question_logic.length; i++) {
+                  protocol_html += '<div class="rule">';
+                    let rule = proto_logic_obj.sub_question_logic[i];
+                    protocol_html += `<b>Type: </b>: ${rule.type}<br/>`;
+                    protocol_html += `<b>Label: </b>: ${rule.label}<br/>`;
+                    protocol_html += `<b>Protocols: </b>: ${rule.protocols} <br/>`;
+                    protocol_html += `<b>Text: </b>: ${rule.rule_text}`;
+                  protocol_html += '</div>';
+                }
+                protocol_html += '</div>';
+              }
+            }
+            
+            nodes.push( {'qs_code': question.caption, 'qs_id': question.projQsId, 'hovertext': '<div>'+'<b>QuestionType: </b>'+ question.answerType +"<br/><b>Question Info: </b>"+ question.questionText + ((question.alias !== null) ? ("<br/><b>Alias: </b>"+ question.alias) : '')+ protocol_html +'</div>', 'proto_logic_type': proto_logic_obj.proto_logic_type } );
           }//answerType questionText alias if not null
         }
       }
@@ -369,7 +413,7 @@ window.onload = function(){
               
               //g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<u class='answer_hover_text'>Rule"+ order_id +"</u>", labelType: "html", lineInterpolate: 'basis' });
               //style: "stroke: #f66; stroke-width: 3px; stroke-dasharray: 5, 5;", labelStyle: "font-style: italic; text-decoration: underline;"
-              g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<div class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>"+ convertModuleQuestionToQuestion(from_question_key)+'<br/>Rule#'+ order_id +'<br/>'+ convertModuleQuestionToQuestion(from_question_key, goto_question_cd) +"</div>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html", lineInterpolate: 'basis' });
+              g.setEdge({v: from_question_key, w: goto_question_cd, name: (from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id) }, { name:  from_question_key+'_'+goto_question_cd+'_Rule_'+ order_id, label: "<div class='answer_hover_text' onmouseover='(function(){ $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){  $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + escapeAnswerLogic(logic_text) +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>"+ convertModuleQuestionToQuestion(from_question_key)+'<br/>Rule#'+ order_id +'<br/>'+ convertModuleQuestionToQuestion(from_question_key, goto_question_cd) +"</div>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html", lineInterpolate: 'basis' });
               //g.setEdge(from_question_key, goto_question_cd,  { label: "<u class='answer_hover_text' onmouseover='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"visible\"); })()' onmouseout='(function(){ return $(\"#tooltip_template\").css(\"visibility\", \"hidden\"); })()' onmousemove='(function(){ $(\"#tooltip_template\").html(\""+ from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text +"\").css(\"top\", (event.pageY-10)+\"px\").css(\"left\",(event.pageX+10)+\"px\"); })()'>Rule"+ order_id +"</u>", hovertext: (from_question_key +' to '+ goto_question_cd + '<br/>' + logic_text), labelType: "html" });
               //g.setEdge(from_question_key, goto_question_cd, { label: 'Rule'+ order_id, hovertext:'A==B' });
             }//for
@@ -382,7 +426,7 @@ window.onload = function(){
         inner = svg.select("g");
 
     // Set the rankdir
-    g.graph().rankdir = 'TB';//'LR';
+    g.graph().rankdir = 'TB';//'TB' (aka vertical) or 'LR' (aka horizontal)
     g.graph().nodesep = 50;
 
     // Set up zoom support
@@ -421,18 +465,56 @@ window.onload = function(){
       .style("z-index", "10")
       .style("visibility", "hidden")
       .text("Simple Tooltip...");
-      
+    
+      document.getElementById('tooltip_template').onmouseover = function () {
+          window.overpopup = true;
+          //console.log(window.overpopup);
+      }
+
+      document.getElementById('tooltip_template').onmouseout = function () {
+          window.overpopup = false;
+          //console.log(window.overpopup);
+      }
+    
     inner.selectAll('g.node')
       .attr("data-hovertext", function(v) { 
         return g.node(v).hovertext
       })
-      .on("mouseover", function(){return tooltip.style("visibility", "visible");})
+      .on("mouseover", function(){ 
+        tooltip.timestamp = new Date().getTime(); 
+        console.log('new timestamp on popup'+ tooltip.timestamp ); 
+        tooltip.style("visibility", "visible"); 
+      })
       .on("mousemove", function(){ 
         tooltip.html( this.dataset.hovertext )   
           .style("top", (event.pageY-10)+"px")
           .style("left",(event.pageX+10)+"px");
       })
-      .on("mouseout", function(){return tooltip.style("visibility", "hidden");});
+      .on("mouseout", function(){ tooltip.style("visibility", "hidden"); });
+      /*
+      .on("mouseout", function(){         
+        let timestamp_when_left = tooltip.timestamp;
+        console.log('mouseOut setTimeout called! timestamp is:'+ timestamp_when_left); 
+        setTimeout( function(){           
+          console.log('mouseout 5s later, '+ timestamp_when_left +'=?='+ tooltip.timestamp + ', window.overpopup='+ window.overpopup); 
+          if(tooltip.style("visibility")!='hidden' && (timestamp_when_left == tooltip.timestamp) ) { 
+            if(window.overpopup != true) {
+              tooltip.style("visibility", "hidden");             
+            } else { //when leave the popup, close it              
+              //or do some interval check
+              //tooltip.onmouseout = function () {
+              //  window.overpopup = false;
+              //  console.log(window.overpopup);
+              //  //tooltip.style("visibility", "hidden");
+              //}
+            }
+          }
+          
+      }, 5000 ) });
+      */
+      //.on("mouseout", function(){ console.log('mouseOut setTimeout called!'); setTimeout( function(){ if(tooltip.style("visibility")!='hidden') { tooltip.style("visibility", "hidden"); console.log('mouseOut setTimeout 2s later!'); } }, 5000 ) });
+
+    inner.selectAll('g.node text').attr("pointer-events", "none"); //so the mouseout event doesn't occur when hover over the text inside the node
 
     inner.selectAll('g.edgePath')
     //inner.selectAll('path')

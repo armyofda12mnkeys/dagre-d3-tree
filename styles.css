@@ -35,12 +35,21 @@ body {
 
 #tooltip_template {
   position: "absolute";
+  max-height: 800px;
+  overflow: scroll;
 }
 .answer_hover_text {
   color: blue;
   position: relative;
   display: block; white-space: normal;
   text-decoration: underline;
+}
+.main_question_proto_logic, 
+.sub_question_proto_logic {
+  border-top: 2px solid black;
+}
+.rule {
+  border-top: 2px dotted blue;
 }
 
 /*
